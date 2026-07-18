@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/StockWatchdog.App/StockWatchdog.App.csproj" />
+    <Project Path="src/StockWatchdog.Application/StockWatchdog.Application.csproj" />
+    <Project Path="src/StockWatchdog.Domain/StockWatchdog.Domain.csproj" />
+    <Project Path="src/StockWatchdog.Infrastructure/StockWatchdog.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/StockWatchdog.Tests/StockWatchdog.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/StockWatchdog.ProviderProbe/StockWatchdog.ProviderProbe.csproj" />
+    <Project Path="tools/StockWatchdog.UiSmoke/StockWatchdog.UiSmoke.csproj" />
+  </Folder>
+</Solution>

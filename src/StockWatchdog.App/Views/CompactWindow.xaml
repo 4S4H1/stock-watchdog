@@ -1,0 +1,279 @@
+<Window x:Class="StockWatchdog.App.Views.CompactWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="clr-namespace:StockWatchdog.App.Controls"
+        mc:Ignorable="d"
+        Title="行情观察"
+        Width="680"
+        Height="320"
+        MinWidth="660"
+        MinHeight="210"
+        WindowStyle="None"
+        ResizeMode="CanResizeWithGrip"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Topmost="True"
+        Closing="OnClosing"
+        KeyDown="OnKeyDown">
+    <Border Background="{DynamicResource AppBackgroundBrush}"
+            BorderBrush="{DynamicResource GridLineBrush}"
+            BorderThickness="1"
+            CornerRadius="{DynamicResource SquareCellRadius}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition x:Name="TitleRow" Height="34"/>
+                <RowDefinition x:Name="CommandRow" Height="42"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition x:Name="StatusRow" Height="30"/>
+            </Grid.RowDefinitions>
+
+            <Grid x:Name="TitleBar"
+                  Grid.Row="0"
+                  Background="{DynamicResource SurfaceBrush}"
+                  MouseLeftButtonDown="OnTitleBarMouseLeftButtonDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
+                    <Ellipse Width="7" Height="7" Fill="{DynamicResource AccentBrush}" Margin="0,0,7,0"/>
+                    <TextBlock Text="行情观察" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Button Grid.Column="1"
+                        ToolTip="设置"
+                        Command="{Binding OpenSettingsCommand}"
+                        Content="⚙"
+                        Padding="8,2"
+                        BorderThickness="0"/>
+                <Button Grid.Column="2"
+                        ToolTip="隐藏到托盘"
+                        Content="×"
+                        Padding="10,2"
+                        BorderThickness="0"
+                        Click="OnHideClick"/>
+            </Grid>
+
+            <Grid x:Name="CommandBar" Grid.Row="1" Margin="8,5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox VerticalContentAlignment="Center"
+                         Text="{Binding NewInstrumentText, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="输入 600519、000001 或 SH600000"
+                         KeyDown="OnInstrumentTextKeyDown"/>
+                <Button Grid.Column="1" Margin="5,0,0,0" Content="添加" Command="{Binding AddInstrumentCommand}"/>
+                <Button Grid.Column="2" Margin="5,0,0,0" Content="↑" Command="{Binding MoveUpCommand}" ToolTip="上移"/>
+                <Button Grid.Column="3" Margin="3,0,0,0" Content="↓" Command="{Binding MoveDownCommand}" ToolTip="下移"/>
+            </Grid>
+
+            <DataGrid x:Name="WatchGrid"
+                      Grid.Row="2"
+                      Margin="8,0"
+                      ItemsSource="{Binding Rows}"
+                      SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="False"
+                      HeadersVisibility="Column"
+                      CanUserAddRows="False"
+                      CanUserResizeRows="False"
+                      CanUserSortColumns="False"
+                      SelectionMode="Single"
+                      SelectionUnit="FullRow"
+                      RowHeight="{DynamicResource WatchRowHeight}"
+                      Background="{DynamicResource SurfaceBrush}"
+                      Foreground="{DynamicResource ForegroundBrush}"
+                      BorderBrush="{DynamicResource GridLineBrush}"
+                      HorizontalGridLinesBrush="{DynamicResource GridLineBrush}"
+                      VerticalGridLinesBrush="{DynamicResource GridLineBrush}"
+                      RowBackground="{DynamicResource SurfaceBrush}"
+                      AlternatingRowBackground="{DynamicResource AppBackgroundBrush}"
+                      BeginningEdit="OnWatchGridBeginningEdit"
+                      CellEditEnding="OnWatchGridCellEditEnding"
+                      PreparingCellForEdit="OnWatchGridPreparingCellForEdit"
+                      PreviewKeyDown="OnWatchGridPreviewKeyDown"
+                      PreviewMouseDoubleClick="OnWatchGridPreviewMouseDoubleClick"
+                      PreviewMouseLeftButtonDown="OnWatchGridPreviewMouseLeftButtonDown"
+                      PreviewMouseRightButtonDown="OnWatchGridPreviewMouseRightButtonDown">
+                <DataGrid.Resources>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource MutedForegroundBrush}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource GridLineBrush}"/>
+                        <Setter Property="Padding" Value="7,4"/>
+                    </Style>
+                    <Style TargetType="DataGridRow">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsDataHealthy}" Value="False">
+                                <Setter Property="Opacity" Value="0.55"/>
+                            </DataTrigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource SelectionBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.Resources>
+                <DataGrid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="重命名（F2）" Click="OnRenameClick"/>
+                        <Separator/>
+                        <MenuItem Header="设置提醒" Command="{Binding PlacementTarget.DataContext.OpenAlertsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                        <Separator/>
+                        <MenuItem Header="删除标的" Command="{Binding PlacementTarget.DataContext.RemoveSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn x:Name="NameColumn"
+                                            Header="名称"
+                                            Width="1.2*"
+                                            MinWidth="90">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}"
+                                           Margin="6,0"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding Name}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding Name, Mode=OneWay}"
+                                         MaxLength="24"
+                                         Padding="5,1"
+                                         VerticalContentAlignment="Center"
+                                         ToolTip="留空可恢复行情名称"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn x:Name="CodeColumn"
+                                        Header="代码"
+                                        Binding="{Binding Code}"
+                                        Width="90"
+                                        IsReadOnly="True"/>
+                    <DataGridTextColumn x:Name="PriceColumn"
+                                        Header="现价"
+                                        Binding="{Binding PriceText}"
+                                        Width="72"
+                                        IsReadOnly="True">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="TextAlignment" Value="Right"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsPositive}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource PositiveBrush}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsNegative}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource NegativeBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn x:Name="ChangeColumn"
+                                        Header="涨跌"
+                                        Binding="{Binding ChangePercentText}"
+                                        Width="68"
+                                        IsReadOnly="True">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="TextAlignment" Value="Right"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsPositive}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource PositiveBrush}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsNegative}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource NegativeBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn x:Name="SignalColumn"
+                                        Header="状态"
+                                        Binding="{Binding SignalText}"
+                                        Width="1.25*"
+                                        MinWidth="110"
+                                        IsReadOnly="True">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsBullishSignal}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource PositiveBrush}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsBearishSignal}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource NegativeBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTemplateColumn x:Name="SparklineColumn"
+                                            Header="走势"
+                                            Width="88"
+                                            IsReadOnly="True">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <controls:Sparkline Values="{Binding SparklineValues}"
+                                                    Height="18"
+                                                    Margin="4,1"
+                                                    StrokeThickness="1.5">
+                                    <controls:Sparkline.Style>
+                                        <Style TargetType="{x:Type controls:Sparkline}">
+                                            <Setter Property="Stroke" Value="{DynamicResource MutedForegroundBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSparklineRising}" Value="True">
+                                                    <Setter Property="Stroke" Value="{DynamicResource PositiveBrush}"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsSparklineFalling}" Value="True">
+                                                    <Setter Property="Stroke" Value="{DynamicResource NegativeBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </controls:Sparkline.Style>
+                                </controls:Sparkline>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn x:Name="UpdateTimeColumn"
+                                        Header="更新"
+                                        Binding="{Binding UpdateTimeText}"
+                                        Width="74"
+                                        IsReadOnly="True"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <Grid x:Name="StatusBar" Grid.Row="3" Margin="9,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding StatusText}"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource MutedForegroundBrush}"
+                           TextTrimming="CharacterEllipsis"/>
+                <Button Grid.Column="1"
+                        Content="提醒"
+                        Command="{Binding OpenAlertsCommand}"
+                        Padding="8,2"
+                        BorderThickness="0"/>
+                <Button Grid.Column="2"
+                        Content="刷新"
+                        Command="{Binding RefreshCommand}"
+                        Padding="8,2"
+                        BorderThickness="0"/>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

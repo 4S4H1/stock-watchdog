@@ -1,0 +1,21 @@
+# Local SDK and build output
+.dotnet/
+**/bin/
+**/obj/
+artifacts/
+
+# IDE and user state
+.vs/
+.idea/
+*.user
+*.suo
+
+# Local application data and logs
+*.db
+*.db-shm
+*.db-wal
+logs/
+
+# OS files
+Thumbs.db
+Desktop.ini

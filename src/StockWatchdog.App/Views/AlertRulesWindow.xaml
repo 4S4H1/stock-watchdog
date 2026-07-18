@@ -1,0 +1,94 @@
+<Window x:Class="StockWatchdog.App.Views.AlertRulesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="提醒规则"
+        Width="620"
+        Height="520"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="180"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock x:Name="TitleTextBlock" FontSize="20" FontWeight="SemiBold"/>
+
+        <DataGrid x:Name="RulesGrid"
+                  Grid.Row="1"
+                  Margin="0,12,0,10"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  SelectionMode="Single">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="名称" Binding="{Binding Rule.Name}" Width="*"/>
+                <DataGridTextColumn Header="类型" Binding="{Binding TypeText}" Width="130"/>
+                <DataGridTextColumn Header="阈值/形态" Binding="{Binding TargetText}" Width="170"/>
+                <DataGridCheckBoxColumn Header="启用" Binding="{Binding Rule.Enabled}" Width="60"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <GroupBox Grid.Row="2" Header="新增规则" Padding="12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="100"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="100"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="名称" Margin="0,7"/>
+                <TextBox x:Name="RuleNameTextBox" Grid.Column="1" Margin="0,3"/>
+                <TextBlock Grid.Column="2" Text="类型" Margin="12,7,0,7"/>
+                <ComboBox x:Name="RuleTypeComboBox"
+                          Grid.Column="3"
+                          Margin="0,3"
+                          DisplayMemberPath="Label"
+                          SelectionChanged="OnRuleTypeSelectionChanged"/>
+
+                <TextBlock Grid.Row="1" Text="阈值" Margin="0,7"/>
+                <TextBox x:Name="ThresholdTextBox" Grid.Row="1" Grid.Column="1" Margin="0,3"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="技术形态" Margin="12,7,0,7"/>
+                <ComboBox x:Name="PatternComboBox"
+                          Grid.Row="1"
+                          Grid.Column="3"
+                          Margin="0,3"
+                          DisplayMemberPath="Label"/>
+
+                <TextBlock Grid.Row="2" Text="冷却（分钟）" Margin="0,7"/>
+                <TextBox x:Name="CooldownTextBox" Grid.Row="2" Grid.Column="1" Margin="0,3" Text="10"/>
+                <TextBlock Grid.Row="2" Grid.Column="2" Text="每日最多" Margin="12,7,0,7"/>
+                <TextBox x:Name="MaxTriggersTextBox" Grid.Row="2" Grid.Column="3" Margin="0,3" Text="3"/>
+
+                <CheckBox x:Name="RuleEnabledCheckBox"
+                          Grid.Row="3"
+                          Grid.ColumnSpan="2"
+                          Margin="0,10,0,0"
+                          Content="立即启用"
+                          IsChecked="True"/>
+                <Button Grid.Row="3"
+                        Grid.Column="3"
+                        Margin="0,8,0,0"
+                        Content="添加规则"
+                        HorizontalAlignment="Right"
+                        Click="OnAddRuleClick"/>
+            </Grid>
+        </GroupBox>
+
+        <Grid Grid.Row="3" Margin="0,12,0,0">
+            <TextBlock x:Name="StatusTextBlock"
+                       VerticalAlignment="Center"
+                       Foreground="{DynamicResource WarningBrush}"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="删除所选" Click="OnDeleteRuleClick"/>
+                <Button Content="关闭" Margin="8,0,0,0" Click="OnCloseClick"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

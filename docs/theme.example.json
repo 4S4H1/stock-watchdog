@@ -1,0 +1,20 @@
+{
+  "id": "quiet-sheet",
+  "name": "低对比电子表格",
+  "background": "#FAFAFA",
+  "surface": "#FFFFFF",
+  "foreground": "#252525",
+  "mutedForeground": "#707070",
+  "gridLine": "#D8D8D8",
+  "positive": "#B91C1C",
+  "negative": "#087A55",
+  "warning": "#9A6700",
+  "accent": "#217346",
+  "selection": "#E2F0D9",
+  "fontFamily": "Segoe UI",
+  "fontSize": 11,
+  "rowHeight": 24,
+  "opacity": 1.0,
+  "windowTitle": "项目跟踪表",
+  "squareCells": true
+}

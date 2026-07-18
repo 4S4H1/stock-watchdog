@@ -1,0 +1,40 @@
+<Window x:Class="StockWatchdog.App.Views.AlertToastWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="360"
+        Height="126"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Topmost="True"
+        AllowsTransparency="True"
+        Background="Transparent">
+    <Border Padding="14"
+            Background="{DynamicResource SurfaceBrush}"
+            BorderBrush="{DynamicResource AccentBrush}"
+            BorderThickness="1"
+            CornerRadius="{DynamicResource SquareCellRadius}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="{Binding Title}"
+                       FontWeight="SemiBold"
+                       FontSize="14"/>
+            <TextBlock Grid.Row="1"
+                       Margin="0,7,0,5"
+                       Text="{Binding Message}"
+                       TextWrapping="Wrap"
+                       TextTrimming="CharacterEllipsis"
+                       Foreground="{DynamicResource MutedForegroundBrush}"/>
+            <TextBlock Grid.Row="2"
+                       Text="{Binding TimeText}"
+                       HorizontalAlignment="Right"
+                       Foreground="{DynamicResource MutedForegroundBrush}"
+                       FontSize="10"/>
+        </Grid>
+    </Border>
+</Window>
