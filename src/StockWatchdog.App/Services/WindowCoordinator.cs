@@ -89,6 +89,7 @@ public sealed class WindowCoordinator
         _detail.Topmost = _settings.AlwaysOnTop;
         _detail.Opacity = theme.Opacity;
         _detail.Title = "技术形态分析";
+        _detail.ApplyTheme();
         _compact.Title = theme.WindowTitle;
     }
 
@@ -373,6 +374,20 @@ public sealed class WindowCoordinator
             }
             catch (Exception)
             {
+            }
+        };
+        window.ConfigurationImported += async (_, settings) =>
+        {
+            ApplySettings(settings);
+            RestoreLayout(settings);
+            try
+            {
+                StartupManager.Apply(settings.StartWithWindows);
+                await _viewModel.InitializeAsync().ConfigureAwait(true);
+            }
+            catch (Exception exception)
+            {
+                Debug.WriteLine($"Failed to apply imported configuration: {exception.Message}");
             }
         };
         window.Closed += (_, _) => _privacy.Unregister(window);

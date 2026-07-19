@@ -3,12 +3,15 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using StockWatchdog.App.Services;
 using StockWatchdog.App.ViewModels;
 using StockWatchdog.App.Views;
 using StockWatchdog.Application.Abstractions;
 using StockWatchdog.Application.Alerts;
 using StockWatchdog.Application.Analysis;
 using StockWatchdog.Application.Services;
+using StockWatchdog.Domain.Alerts;
+using StockWatchdog.Domain.Analysis;
 using StockWatchdog.Domain.Market;
 using StockWatchdog.Domain.Settings;
 using StockWatchdog.Infrastructure.Persistence;
@@ -28,9 +31,13 @@ internal static class Program
         var application = new StockWatchdog.App.App();
         application.InitializeComponent();
 
-        var repository = new SqliteAppRepository(
-            Path.Combine(Path.GetTempPath(), $"stock-watchdog-ui-{Guid.NewGuid():N}.db"));
+        var temporaryRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"stock-watchdog-ui-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(temporaryRoot);
+        var repository = new SqliteAppRepository(Path.Combine(temporaryRoot, "ui-smoke.db"));
         repository.InitializeAsync().GetAwaiter().GetResult();
+        var themes = new ThemeManager(Path.Combine(temporaryRoot, "themes"));
         var monitor = new MarketMonitorService(
             new EmptyProvider(),
             repository,
@@ -45,8 +52,15 @@ internal static class Program
             Left = -20_000,
             Top = -20_000
         };
+        themes.Apply("light");
         compact.ApplySettings(new AppSettings(), ThemeDefinition.BuiltIns[0]);
         RenderWindow(compact, Path.Combine(outputDirectory, "compact-rich.png"));
+        themes.Apply("dark");
+        compact.ApplySettings(
+            new AppSettings(ThemeId: "dark"),
+            ThemeDefinition.BuiltIns[1]);
+        RenderWindow(compact, Path.Combine(outputDirectory, "compact-dark.png"));
+        themes.Apply("spreadsheet");
         compact.ApplySettings(
             new AppSettings(CompactMode: CompactDisplayMode.Minimal),
             ThemeDefinition.BuiltIns[2]);
@@ -60,6 +74,7 @@ internal static class Program
             Left = -20_000,
             Top = -20_000
         };
+        themes.Apply("dark");
         var snapshot = viewModel.SelectedAnalysis!;
         var anchor = snapshot.Bars[^22];
         var lossAnchor = snapshot.Bars[^12];
@@ -82,8 +97,69 @@ internal static class Program
                 snapshot.Bars[^1].Close + 0.025m,
                 snapshot.CalculatedAt.AddSeconds(1))
         ]);
-        RenderWindow(detail, Path.Combine(outputDirectory, "detail.png"));
+        RenderWindow(detail, Path.Combine(outputDirectory, "detail-dark.png"));
         detail.Close();
+
+        repository.SaveSettingsAsync(new AppSettings(ThemeId: "dark"))
+            .GetAwaiter()
+            .GetResult();
+        var settings = new SettingsWindow(
+            repository,
+            monitor,
+            themes,
+            _ => (true, null))
+        {
+            Left = -20_000,
+            Top = -20_000
+        };
+        RenderWindow(settings, Path.Combine(outputDirectory, "settings-dark.png"));
+        settings.Close();
+
+        var alerts = new AlertRulesWindow(
+            snapshot.Instrument,
+            "沪深300ETF",
+            repository,
+            monitor)
+        {
+            Left = -20_000,
+            Top = -20_000
+        };
+        RenderWindow(alerts, Path.Combine(outputDirectory, "alerts-dark.png"));
+        alerts.Close();
+
+        var portableConfiguration = new PortableConfigurationWindow(
+            PortableConfigurationWindowMode.Export,
+            $"SWCFG1.0123456789ABCDEF.{new string('A', 420)}")
+        {
+            Left = -20_000,
+            Top = -20_000
+        };
+        RenderWindow(
+            portableConfiguration,
+            Path.Combine(outputDirectory, "portable-config-dark.png"));
+        portableConfiguration.Close();
+
+        var toastNow = DateTimeOffset.Now;
+        var toast = new AlertToastWindow(
+            new AlertEvent(
+                Guid.NewGuid(),
+                null,
+                snapshot.Instrument,
+                AlertRuleType.TScoreBuy,
+                AlertPriority.High,
+                "低吸候选 · 买入条件 82 分",
+                "价格低于 VWAP，短时量速回升；卖出条件 24 分。",
+                toastNow,
+                toastNow.AddMinutes(2),
+                "ui-smoke",
+                null),
+            TimeSpan.FromMinutes(1))
+        {
+            Left = -20_000,
+            Top = -20_000
+        };
+        RenderWindow(toast, Path.Combine(outputDirectory, "toast-dark.png"));
+        toast.Close();
         application.Shutdown();
     }
 
@@ -144,6 +220,16 @@ internal static class Program
             now);
         row.UpdateSparkline(snapshot);
         row.UpdateAnalysis(snapshot);
+        row.UpdateTSignal(new TSignalSnapshot(
+            instrument,
+            78,
+            21,
+            TSignalState.BuyCandidate,
+            "低吸候选 · 价格低于 VWAP、短时量速回升",
+            now,
+            now.AddMinutes(2),
+            MarketDataQuality.Healthy,
+            []));
         typeof(MainViewModel)
             .GetProperty(
                 nameof(MainViewModel.SelectedAnalysis),

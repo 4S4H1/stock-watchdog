@@ -197,27 +197,51 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
-                    <DataGridTextColumn x:Name="SignalColumn"
-                                        Header="状态"
-                                        Binding="{Binding SignalText}"
-                                        Width="1.25*"
-                                        MinWidth="110"
-                                        IsReadOnly="True">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsBullishSignal}" Value="True">
-                                        <Setter Property="Foreground" Value="{DynamicResource PositiveBrush}"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding IsBearishSignal}" Value="True">
-                                        <Setter Property="Foreground" Value="{DynamicResource NegativeBrush}"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                    <DataGridTemplateColumn x:Name="SignalColumn"
+                                            Header="做T评分"
+                                            Width="132"
+                                            MinWidth="122"
+                                            IsReadOnly="True">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Grid Margin="5,0"
+                                      VerticalAlignment="Center"
+                                      ToolTip="{Binding TSignalSummary}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="30"/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="30"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="买"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource MutedForegroundBrush}"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding BuyScoreText}"
+                                               TextAlignment="Right"
+                                               VerticalAlignment="Center"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource PositiveBrush}"/>
+                                    <TextBlock Grid.Column="2"
+                                               Text="·"
+                                               TextAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource GridLineBrush}"/>
+                                    <TextBlock Grid.Column="3"
+                                               Text="卖"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource MutedForegroundBrush}"/>
+                                    <TextBlock Grid.Column="4"
+                                               Text="{Binding SellScoreText}"
+                                               TextAlignment="Right"
+                                               VerticalAlignment="Center"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource NegativeBrush}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTemplateColumn x:Name="SparklineColumn"
                                             Header="走势"
                                             Width="88"

@@ -50,6 +50,12 @@ public interface IAppRepository
 
     Task SaveSettingsAsync(AppSettings settings, CancellationToken cancellationToken = default);
 
+    Task ReplacePortableConfigurationAsync(
+        AppSettings settings,
+        IReadOnlyCollection<WatchItem> watchItems,
+        IReadOnlyCollection<AlertRule> alertRules,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<WatchItem>> GetWatchItemsAsync(CancellationToken cancellationToken = default);
 
     Task UpsertWatchItemAsync(WatchItem item, CancellationToken cancellationToken = default);

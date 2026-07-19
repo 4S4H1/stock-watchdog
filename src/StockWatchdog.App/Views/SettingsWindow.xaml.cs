@@ -1,8 +1,10 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
 using StockWatchdog.App.Services;
 using StockWatchdog.Application.Abstractions;
+using StockWatchdog.Application.Configuration;
 using StockWatchdog.Application.Services;
 using StockWatchdog.Domain.Settings;
 
@@ -27,10 +29,13 @@ public partial class SettingsWindow : Window
         _themeManager = themeManager;
         _registerHotkey = registerHotkey;
         InitializeComponent();
+        SourceInitialized += (_, _) => ThemeManager.ApplyWindowChrome(this);
         Loaded += OnLoaded;
     }
 
     public event EventHandler<AppSettings>? SettingsSaved;
+
+    public event EventHandler<AppSettings>? ConfigurationImported;
 
     private async void OnLoaded(object sender, RoutedEventArgs eventArgs)
     {
@@ -52,6 +57,9 @@ public partial class SettingsWindow : Window
             ShowSignalCheckBox.IsChecked = _settings.ShowSignalColumn;
             ShowSparklineCheckBox.IsChecked = _settings.ShowSparklineColumn;
             ShowTimeCheckBox.IsChecked = _settings.ShowUpdateTimeColumn;
+            TScoreEnabledCheckBox.IsChecked = _settings.TScoreEnabled;
+            TScoreThresholdTextBox.Text = _settings.TScoreAlertThreshold.ToString();
+            TScoreCooldownTextBox.Text = _settings.TScoreCooldownMinutes.ToString();
             ReloadThemes(_settings.ThemeId);
         }
         catch (Exception exception)
@@ -131,6 +139,117 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private async void OnExportConfigurationClick(object sender, RoutedEventArgs eventArgs)
+    {
+        ErrorTextBlock.Text = string.Empty;
+        try
+        {
+            var bundle = new PortableConfigurationBundle(
+                PortableConfigurationCodec.CurrentFormatVersion,
+                "StockWatchdog",
+                DateTimeOffset.Now,
+                await _repository.GetSettingsAsync().ConfigureAwait(true),
+                await _repository.GetWatchItemsAsync().ConfigureAwait(true),
+                await _repository.GetAlertRulesAsync().ConfigureAwait(true),
+                _themeManager.GetPortableThemes());
+            var text = PortableConfigurationCodec.Encode(bundle);
+            var window = new PortableConfigurationWindow(
+                PortableConfigurationWindowMode.Export,
+                text)
+            {
+                Owner = this
+            };
+            _ = window.ShowDialog();
+            ErrorTextBlock.Text = $"已生成配置文本（{text.Length:N0} 个字符）";
+        }
+        catch (Exception exception)
+        {
+            ErrorTextBlock.Text = $"导出失败：{exception.Message}";
+        }
+    }
+
+    private async void OnImportConfigurationClick(object sender, RoutedEventArgs eventArgs)
+    {
+        ErrorTextBlock.Text = string.Empty;
+        var window = new PortableConfigurationWindow(PortableConfigurationWindowMode.Import)
+        {
+            Owner = this
+        };
+        if (window.ShowDialog() != true)
+        {
+            return;
+        }
+
+        PortableConfigurationBundle bundle;
+        try
+        {
+            bundle = PortableConfigurationCodec.Decode(window.ConfigurationText);
+        }
+        catch (Exception exception)
+        {
+            ErrorTextBlock.Text = $"配置校验失败：{exception.Message}";
+            return;
+        }
+
+        var confirmation = System.Windows.MessageBox.Show(
+            $"配置导出时间：{bundle.ExportedAt:yyyy-MM-dd HH:mm}\n"
+            + $"自选标的：{bundle.WatchItems.Count} 个\n"
+            + $"提醒规则：{bundle.AlertRules.Count} 条\n"
+            + $"自定义主题：{bundle.CustomThemes.Count} 个\n\n"
+            + "确认后将替换当前界面设置、自选列表和提醒规则。"
+            + "行情缓存、图表标记和历史提醒不会被修改。",
+            "确认导入全部配置",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+        if (confirmation != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var registration = _registerHotkey(bundle.Settings.EffectiveBossHotkey);
+        if (!registration.Success)
+        {
+            ErrorTextBlock.Text = $"导入配置中的快捷键不可用：{registration.Error}";
+            return;
+        }
+
+        try
+        {
+            _themeManager.InstallPortableThemes(bundle.CustomThemes);
+            if (!_themeManager.Themes.Any(theme => string.Equals(
+                    theme.Id,
+                    bundle.Settings.ThemeId,
+                    StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InvalidDataException($"配置引用了不存在的主题：{bundle.Settings.ThemeId}");
+            }
+
+            await _repository.ReplacePortableConfigurationAsync(
+                    bundle.Settings,
+                    bundle.WatchItems,
+                    bundle.AlertRules)
+                .ConfigureAwait(true);
+            await _monitor.ReloadConfigurationAsync().ConfigureAwait(true);
+            _settings = bundle.Settings.Normalize();
+            _themeManager.Apply(_settings.ThemeId);
+            ConfigurationImported?.Invoke(this, _settings);
+            System.Windows.MessageBox.Show(
+                "配置已导入并应用。行情缓存、图表标记和历史提醒保持不变。",
+                "配置导入完成",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            DialogResult = true;
+            Close();
+        }
+        catch (Exception exception)
+        {
+            _ = _registerHotkey(_settings.EffectiveBossHotkey);
+            _themeManager.Apply(_settings.ThemeId);
+            ErrorTextBlock.Text = $"导入失败，原配置保持不变：{exception.Message}";
+        }
+    }
+
     private async void OnSaveClick(object sender, RoutedEventArgs eventArgs)
     {
         ErrorTextBlock.Text = string.Empty;
@@ -144,6 +263,15 @@ public partial class SettingsWindow : Window
         if (!HotkeyParser.TryParse(HotkeyTextBox.Text, out var hotkey, out var parseError))
         {
             ErrorTextBlock.Text = parseError;
+            return;
+        }
+
+        if (!int.TryParse(TScoreThresholdTextBox.Text, out var tScoreThreshold)
+            || tScoreThreshold is < 60 or > 95
+            || !int.TryParse(TScoreCooldownTextBox.Text, out var tScoreCooldown)
+            || tScoreCooldown is < 1 or > 240)
+        {
+            ErrorTextBlock.Text = "做 T 评分阈值需为 60–95，冷却时间需为 1–240 分钟";
             return;
         }
 
@@ -185,6 +313,9 @@ public partial class SettingsWindow : Window
             ShowSignalColumn = ShowSignalCheckBox.IsChecked == true,
             ShowSparklineColumn = ShowSparklineCheckBox.IsChecked == true,
             ShowUpdateTimeColumn = ShowTimeCheckBox.IsChecked == true,
+            TScoreEnabled = TScoreEnabledCheckBox.IsChecked == true,
+            TScoreAlertThreshold = tScoreThreshold,
+            TScoreCooldownMinutes = tScoreCooldown,
             BossHotkey = hotkey
         };
 

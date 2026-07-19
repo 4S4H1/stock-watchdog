@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using StockWatchdog.App.Services;
 using StockWatchdog.Application.Abstractions;
 using StockWatchdog.Application.Services;
 using StockWatchdog.Domain.Alerts;
@@ -24,6 +25,7 @@ public partial class AlertRulesWindow : Window
         _repository = repository;
         _monitor = monitor;
         InitializeComponent();
+        SourceInitialized += (_, _) => ThemeManager.ApplyWindowChrome(this);
         TitleTextBlock.Text = $"{name} · 提醒规则";
         RuleTypeComboBox.ItemsSource = RuleTypes;
         RuleTypeComboBox.SelectedIndex = 0;

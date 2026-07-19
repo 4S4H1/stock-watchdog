@@ -17,6 +17,10 @@ public sealed class WatchRowViewModel : ObservableObject
     private MarketDataQuality _quality = MarketDataQuality.WarmingUp;
     private string _signalText = "等待数据";
     private PatternDirection _signalDirection = PatternDirection.Neutral;
+    private int? _buyScore;
+    private int? _sellScore;
+    private string _tSignalSummary = "做 T 评分预热中";
+    private TSignalState _tSignalState = TSignalState.Unavailable;
 
     public WatchRowViewModel(WatchItem item)
     {
@@ -147,6 +151,62 @@ public sealed class WatchRowViewModel : ObservableObject
 
     public bool IsBearishSignal => SignalDirection == PatternDirection.Bearish;
 
+    public int? BuyScore
+    {
+        get => _buyScore;
+        private set
+        {
+            if (SetProperty(ref _buyScore, value))
+            {
+                OnPropertyChanged(nameof(BuyScoreText));
+            }
+        }
+    }
+
+    public int? SellScore
+    {
+        get => _sellScore;
+        private set
+        {
+            if (SetProperty(ref _sellScore, value))
+            {
+                OnPropertyChanged(nameof(SellScoreText));
+            }
+        }
+    }
+
+    public string BuyScoreText => BuyScore?.ToString() ?? "--";
+
+    public string SellScoreText => SellScore?.ToString() ?? "--";
+
+    public string TSignalSummary
+    {
+        get => _tSignalSummary;
+        private set => SetProperty(ref _tSignalSummary, value);
+    }
+
+    public TSignalState TScoreState
+    {
+        get => _tSignalState;
+        private set
+        {
+            if (SetProperty(ref _tSignalState, value))
+            {
+                OnPropertyChanged(nameof(IsBuyCandidate));
+                OnPropertyChanged(nameof(IsSellCandidate));
+                OnPropertyChanged(nameof(IsTSignalUnavailable));
+            }
+        }
+    }
+
+    public bool IsBuyCandidate =>
+        TScoreState is TSignalState.BuyCandidate or TSignalState.WatchBuy;
+
+    public bool IsSellCandidate =>
+        TScoreState is TSignalState.SellCandidate or TSignalState.WatchSell;
+
+    public bool IsTSignalUnavailable => TScoreState == TSignalState.Unavailable;
+
     public void UpdateQuote(QuoteSnapshot quote)
     {
         if (quote.Instrument != Instrument)
@@ -196,6 +256,19 @@ public sealed class WatchRowViewModel : ObservableObject
             ? finding?.DisplayName ?? snapshot.StatusText
             : "数据异常，信号暂停";
         SignalDirection = finding?.Direction ?? PatternDirection.Neutral;
+    }
+
+    public void UpdateTSignal(TSignalSnapshot snapshot)
+    {
+        if (snapshot.Instrument != Instrument)
+        {
+            return;
+        }
+
+        BuyScore = snapshot.BuyScore;
+        SellScore = snapshot.SellScore;
+        TSignalSummary = snapshot.Summary;
+        TScoreState = snapshot.State;
     }
 
     public void ReplaceItem(WatchItem item)

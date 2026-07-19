@@ -104,6 +104,20 @@
                     </StackPanel>
                 </Border>
                 <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal"
+                                Margin="0,0,0,3"
+                                ToolTip="{Binding SelectedRow.TSignalSummary}">
+                        <TextBlock Text="买入条件 "
+                                   Foreground="{DynamicResource MutedForegroundBrush}"/>
+                        <TextBlock Text="{Binding SelectedRow.BuyScoreText}"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource PositiveBrush}"/>
+                        <TextBlock Text="  ·  卖出条件 "
+                                   Foreground="{DynamicResource MutedForegroundBrush}"/>
+                        <TextBlock Text="{Binding SelectedRow.SellScoreText}"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource NegativeBrush}"/>
+                    </StackPanel>
                     <TextBlock Text="{Binding AnalysisStatus}"
                                Foreground="{DynamicResource MutedForegroundBrush}"
                                TextTrimming="CharacterEllipsis"/>

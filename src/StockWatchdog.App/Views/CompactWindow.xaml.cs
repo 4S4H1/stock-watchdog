@@ -191,15 +191,35 @@ public partial class CompactWindow : Window
         object sender,
         MouseButtonEventArgs eventArgs)
     {
-        if (!_isMinimalMode
-            || eventArgs.LeftButton != MouseButtonState.Pressed
-            || !Keyboard.Modifiers.HasFlag(ModifierKeys.Alt))
+        if (eventArgs.LeftButton != MouseButtonState.Pressed)
         {
             return;
         }
 
-        DragMove();
-        eventArgs.Handled = true;
+        if (_isMinimalMode && Keyboard.Modifiers.HasFlag(ModifierKeys.Alt))
+        {
+            DragMove();
+            eventArgs.Handled = true;
+            return;
+        }
+
+        if (_isEditingName || eventArgs.ClickCount > 1)
+        {
+            return;
+        }
+
+        var row = FindAncestor<DataGridRow>(eventArgs.OriginalSource as DependencyObject);
+        if (row is null)
+        {
+            ClearWatchSelection();
+            return;
+        }
+
+        if (row.IsSelected)
+        {
+            ClearWatchSelection();
+            eventArgs.Handled = true;
+        }
     }
 
     private void OnWatchGridPreviewMouseRightButtonDown(
@@ -234,6 +254,17 @@ public partial class CompactWindow : Window
             && viewModel.OpenDetailCommand.CanExecute(null))
         {
             viewModel.OpenDetailCommand.Execute(null);
+        }
+    }
+
+    private void ClearWatchSelection()
+    {
+        WatchGrid.UnselectAll();
+        WatchGrid.SelectedItem = null;
+        WatchGrid.CurrentCell = new DataGridCellInfo();
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.SelectedRow = null;
         }
     }
 

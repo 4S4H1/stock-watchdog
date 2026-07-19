@@ -38,6 +38,8 @@ public partial class DetailWindow : Window
 
     public IReadOnlyList<ChartTradeMarker> TradeMarkers => _tradeMarkers.ToArray();
 
+    public void ApplyTheme() => RenderCurrentChart();
+
     /// <summary>
     /// Replaces the in-memory markers without raising <see cref="TradeMarkersChanged"/>.
     /// This is the integration point for loading persisted annotations.
@@ -97,6 +99,7 @@ public partial class DetailWindow : Window
     {
         var snapshot = viewModel.SelectedAnalysis;
         AnalysisPlot.Plot.Clear();
+        ApplyPlotTheme();
         ConfigureLegend();
         if (snapshot is null || snapshot.Bars.Count == 0)
         {
@@ -252,7 +255,7 @@ public partial class DetailWindow : Window
                 markerShape);
             marker.MarkerSize = 14;
             marker.MarkerFillColor = markerColor.WithAlpha(.9);
-            marker.MarkerLineColor = Colors.White;
+            marker.MarkerLineColor = ResourceColor("ForegroundBrush", Colors.White);
             marker.LineWidth = 1.5f;
 
             if (tradeMarker.Side == ChartTradeSide.Buy && !buyLegendAdded)
@@ -314,7 +317,7 @@ public partial class DetailWindow : Window
         label.LabelFontName = ChartFontName;
         label.LabelFontSize = 9;
         label.LabelFontColor = frameColor;
-        label.LabelBackgroundColor = Colors.White.WithAlpha(.78);
+        label.LabelBackgroundColor = ResourceColor("SurfaceBrush", Colors.White).WithAlpha(.88);
         label.LabelBorderColor = frameColor.WithAlpha(.75);
         label.LabelBorderWidth = 1;
         label.LabelAlignment = Alignment.MiddleCenter;
@@ -328,12 +331,44 @@ public partial class DetailWindow : Window
         AnalysisPlot.Plot.Legend.Alignment = Alignment.UpperLeft;
     }
 
+    private void ApplyPlotTheme()
+    {
+        var surface = ResourceColor("SurfaceBrush", Colors.White);
+        var background = ResourceColor("AppBackgroundBrush", Colors.White);
+        var foreground = ResourceColor("ForegroundBrush", Colors.Black);
+        var grid = ResourceColor("GridLineBrush", Colors.Gray);
+        AnalysisPlot.Plot.FigureBackground.Color = background;
+        AnalysisPlot.Plot.DataBackground.Color = surface;
+        AnalysisPlot.Plot.Axes.Color(foreground);
+        AnalysisPlot.Plot.Axes.FrameColor(grid);
+        AnalysisPlot.Plot.Grid.MajorLineColor = grid.WithAlpha(.45);
+        AnalysisPlot.Plot.Legend.BackgroundColor = surface.WithAlpha(.92);
+        AnalysisPlot.Plot.Legend.FontColor = foreground;
+        AnalysisPlot.Plot.Legend.OutlineColor = grid;
+    }
+
     private void AddChartMessage(string message)
     {
         var text = AnalysisPlot.Plot.Add.Text(message, 0, 0);
         text.LabelFontName = ChartFontName;
         text.LabelFontSize = 12;
+        text.LabelFontColor = ResourceColor("MutedForegroundBrush", Colors.Gray);
         text.LabelAlignment = Alignment.MiddleCenter;
+    }
+
+    private static PlotColor ResourceColor(string key, PlotColor fallback)
+    {
+        if (System.Windows.Application.Current.Resources[key]
+            is not System.Windows.Media.SolidColorBrush brush)
+        {
+            return fallback;
+        }
+
+        return new PlotColor(
+            brush.Color.R,
+            brush.Color.G,
+            brush.Color.B,
+            brush.Color.A);
     }
 
     private void OnIndicatorVisibilityChanged(object sender, RoutedEventArgs eventArgs)

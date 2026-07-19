@@ -9,7 +9,9 @@ public enum AlertRuleType
     PriceBelow,
     ChangePercentAbove,
     ChangePercentBelow,
-    Pattern
+    Pattern,
+    TScoreBuy,
+    TScoreSell
 }
 
 public enum AlertPriority

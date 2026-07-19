@@ -4,6 +4,8 @@
         Title="提醒规则"
         Width="620"
         Height="520"
+        Background="{DynamicResource AppBackgroundBrush}"
+        Foreground="{DynamicResource ForegroundBrush}"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
     <Grid Margin="18">

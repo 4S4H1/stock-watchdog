@@ -55,6 +55,7 @@ public sealed class MainViewModel : ObservableObject
 
         _monitor.QuotesUpdated += OnQuotesUpdated;
         _monitor.AnalysisUpdated += OnAnalysisUpdated;
+        _monitor.TSignalUpdated += OnTSignalUpdated;
         _monitor.StatusChanged += OnStatusChanged;
     }
 
@@ -190,7 +191,13 @@ public sealed class MainViewModel : ObservableObject
         Rows.Clear();
         foreach (var item in _monitor.WatchItems.OrderBy(x => x.SortOrder))
         {
-            Rows.Add(new WatchRowViewModel(item));
+            var row = new WatchRowViewModel(item);
+            if (_monitor.LatestTSignals.TryGetValue(item.Instrument, out var signal))
+            {
+                row.UpdateTSignal(signal);
+            }
+
+            Rows.Add(row);
         }
 
         if (Rows.Count > 0)
@@ -351,6 +358,15 @@ public sealed class MainViewModel : ObservableObject
     {
         _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(
             () => StatusText = eventArgs.Message);
+    }
+
+    private void OnTSignalUpdated(object? sender, TSignalEventArgs eventArgs)
+    {
+        _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+        {
+            Rows.FirstOrDefault(x => x.Instrument == eventArgs.Snapshot.Instrument)
+                ?.UpdateTSignal(eventArgs.Snapshot);
+        });
     }
 
     private void RefreshSelectedAnalysis()

@@ -24,6 +24,11 @@ public sealed class AlertEventArgs(AlertEvent alert) : EventArgs
     public AlertEvent Alert { get; } = alert;
 }
 
+public sealed class TSignalEventArgs(TSignalSnapshot snapshot) : EventArgs
+{
+    public TSignalSnapshot Snapshot { get; } = snapshot;
+}
+
 public sealed class MonitorStatusEventArgs(string message, bool isError = false) : EventArgs
 {
     public string Message { get; } = message;
@@ -38,9 +43,13 @@ public sealed class MarketMonitorService : IAsyncDisposable
     private readonly ITechnicalAnalysisEngine _analysisEngine;
     private readonly IClock _clock;
     private readonly AlertEvaluator _alertEvaluator;
+    private readonly TSignalEngine _tSignalEngine = new();
+    private readonly QuoteFlowTracker _quoteFlowTracker = new();
+    private readonly TScoreAlertEvaluator _tScoreAlertEvaluator = new();
     private readonly SemaphoreSlim _pollGate = new(1, 1);
     private readonly ConcurrentDictionary<InstrumentId, QuoteSnapshot> _quotes = [];
     private readonly ConcurrentDictionary<(InstrumentId, Timeframe), AnalysisSnapshot> _analysis = [];
+    private readonly ConcurrentDictionary<InstrumentId, TSignalSnapshot> _tSignals = [];
 
     private CancellationTokenSource? _cancellation;
     private Task? _monitorTask;
@@ -69,6 +78,8 @@ public sealed class MarketMonitorService : IAsyncDisposable
 
     public event EventHandler<AlertEventArgs>? AlertRaised;
 
+    public event EventHandler<TSignalEventArgs>? TSignalUpdated;
+
     public event EventHandler<MonitorStatusEventArgs>? StatusChanged;
 
     public AppSettings Settings => _settings;
@@ -78,6 +89,8 @@ public sealed class MarketMonitorService : IAsyncDisposable
     public IReadOnlyDictionary<InstrumentId, QuoteSnapshot> LatestQuotes => _quotes;
 
     public IReadOnlyDictionary<(InstrumentId, Timeframe), AnalysisSnapshot> LatestAnalysis => _analysis;
+
+    public IReadOnlyDictionary<InstrumentId, TSignalSnapshot> LatestTSignals => _tSignals;
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
@@ -107,6 +120,7 @@ public sealed class MarketMonitorService : IAsyncDisposable
             .GetAlertEventsAsync(localDayStart, cancellationToken)
             .ConfigureAwait(false);
         _alertEvaluator.RestoreState(_alertRules, recentAlerts);
+        _tScoreAlertEvaluator.RestoreState(recentAlerts);
         StatusChanged?.Invoke(
             this,
             new MonitorStatusEventArgs(
@@ -223,8 +237,13 @@ public sealed class MarketMonitorService : IAsyncDisposable
                 _quotes[quote.Instrument] = quote;
             }
 
+            _quoteFlowTracker.Observe(normalizedQuotes);
             QuotesUpdated?.Invoke(this, new QuoteBatchEventArgs(normalizedQuotes));
             await EvaluateQuoteAlertsAsync(normalizedQuotes, now, cancellationToken).ConfigureAwait(false);
+            foreach (var quote in normalizedQuotes)
+            {
+                await UpdateTSignalAsync(quote, now, cancellationToken).ConfigureAwait(false);
+            }
 
             var completedMinute = new DateTimeOffset(
                 now.Year,
@@ -348,6 +367,10 @@ public sealed class MarketMonitorService : IAsyncDisposable
         }
 
         await _repository.SaveBarsAsync(allBars, cancellationToken).ConfigureAwait(false);
+        if (_quotes.TryGetValue(item.Instrument, out var quote))
+        {
+            await UpdateTSignalAsync(quote, now, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private async Task EvaluateQuoteAlertsAsync(
@@ -386,6 +409,33 @@ public sealed class MarketMonitorService : IAsyncDisposable
         if (await _repository.TryAddAlertEventAsync(alert, cancellationToken).ConfigureAwait(false))
         {
             AlertRaised?.Invoke(this, new AlertEventArgs(alert));
+        }
+    }
+
+    private async Task UpdateTSignalAsync(
+        QuoteSnapshot quote,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var snapshots = _analysis
+            .Where(item => item.Key.Item1 == quote.Instrument)
+            .ToDictionary(item => item.Key.Item2, item => item.Value);
+        var signal = _tSignalEngine.Analyze(
+            quote,
+            snapshots,
+            _quoteFlowTracker.GetMetrics(quote.Instrument),
+            now,
+            _settings.TScoreAlertThreshold);
+        _tSignals[quote.Instrument] = signal;
+        TSignalUpdated?.Invoke(this, new TSignalEventArgs(signal));
+        foreach (var alert in _tScoreAlertEvaluator.Evaluate(
+                     signal,
+                     _settings.TScoreEnabled,
+                     _settings.TScoreAlertThreshold,
+                     TimeSpan.FromMinutes(_settings.TScoreCooldownMinutes),
+                     now))
+        {
+            await RaiseAlertAsync(alert, cancellationToken).ConfigureAwait(false);
         }
     }
 

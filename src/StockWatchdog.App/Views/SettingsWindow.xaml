@@ -3,7 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="设置"
         Width="480"
-        Height="650"
+        Height="735"
+        Background="{DynamicResource AppBackgroundBrush}"
+        Foreground="{DynamicResource ForegroundBrush}"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False">
@@ -18,6 +20,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -72,29 +75,81 @@
             </ComboBox>
         </GroupBox>
 
-        <GroupBox Grid.Row="7" Header="小浮窗列" Margin="0,12,0,0" Padding="10">
+        <GroupBox Grid.Row="7" Header="做 T 双评分提醒" Margin="0,12,0,0" Padding="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="54"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="54"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <CheckBox x:Name="TScoreEnabledCheckBox"
+                          Grid.ColumnSpan="5"
+                          Content="达到候选阈值时弹窗并播放提醒"
+                          Margin="0,0,0,8"/>
+                <TextBlock Grid.Row="1" Text="阈值（60–95）" VerticalAlignment="Center"/>
+                <TextBox x:Name="TScoreThresholdTextBox"
+                         Grid.Row="1"
+                         Grid.Column="1"
+                         Margin="6,0,14,0"
+                         Padding="5,3"/>
+                <TextBlock Grid.Row="1"
+                           Grid.Column="2"
+                           Text="冷却（1–240 分钟）"
+                           VerticalAlignment="Center"/>
+                <TextBox x:Name="TScoreCooldownTextBox"
+                         Grid.Row="1"
+                         Grid.Column="3"
+                         Margin="6,0,0,0"
+                         Padding="5,3"/>
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Grid.Row="8" Header="小浮窗列" Margin="0,12,0,0" Padding="10">
             <UniformGrid Columns="4">
                 <CheckBox x:Name="ShowNameCheckBox" Content="名称" Margin="0,3"/>
                 <CheckBox x:Name="ShowCodeCheckBox" Content="代码" Margin="0,3"/>
                 <CheckBox x:Name="ShowPriceCheckBox" Content="现价" Margin="0,3"/>
                 <CheckBox x:Name="ShowChangeCheckBox" Content="涨跌" Margin="0,3"/>
-                <CheckBox x:Name="ShowSignalCheckBox" Content="技术状态" Margin="0,3"/>
+                <CheckBox x:Name="ShowSignalCheckBox" Content="做T评分" Margin="0,3"/>
                 <CheckBox x:Name="ShowSparklineCheckBox" Content="走势" Margin="0,3"/>
                 <CheckBox x:Name="ShowTimeCheckBox" Content="更新时间" Margin="0,3"/>
             </UniformGrid>
         </GroupBox>
 
-        <Border Grid.Row="8"
+        <Border Grid.Row="9"
                 Margin="0,18,0,8"
                 Padding="10"
                 Background="{DynamicResource SelectionBrush}"
                 CornerRadius="{DynamicResource SquareCellRadius}">
-            <TextBlock TextWrapping="Wrap"
-                       Foreground="{DynamicResource MutedForegroundBrush}"
-                       Text="免费公开行情无 SLA。行情延迟、过期或主备源冲突时，技术分析与提醒会自动暂停。图表买卖点只用于复盘。"/>
+            <StackPanel>
+                <TextBlock TextWrapping="Wrap"
+                           Foreground="{DynamicResource MutedForegroundBrush}"
+                           Text="买卖分数表示量价条件匹配强度，不代表成功率。免费公开行情无 SLA，延迟、过期或主备源冲突时评分会自动暂停。"/>
+                <StackPanel Orientation="Horizontal"
+                            Margin="0,8,0,0"
+                            HorizontalAlignment="Right">
+                    <TextBlock Text="设备迁移"
+                               Margin="0,0,10,0"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource MutedForegroundBrush}"/>
+                    <Button Content="导出全部配置"
+                            Padding="8,3"
+                            Click="OnExportConfigurationClick"/>
+                    <Button Content="导入配置文本"
+                            Margin="7,0,0,0"
+                            Padding="8,3"
+                            Click="OnImportConfigurationClick"/>
+                </StackPanel>
+            </StackPanel>
         </Border>
 
-        <StackPanel Grid.Row="9" Orientation="Horizontal" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="10" Orientation="Horizontal" HorizontalAlignment="Right">
             <TextBlock x:Name="ErrorTextBlock"
                        VerticalAlignment="Center"
                        Margin="0,0,12,0"

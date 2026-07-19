@@ -161,6 +161,14 @@ public partial class App : System.Windows.Application
         }
     }
 
+    private void OnThemedWindowLoaded(object sender, RoutedEventArgs eventArgs)
+    {
+        if (sender is Window window)
+        {
+            ThemeManager.ApplyWindowChrome(window);
+        }
+    }
+
     protected override void OnExit(ExitEventArgs eventArgs)
     {
         SystemEvents.SessionSwitch -= OnSessionSwitch;

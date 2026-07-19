@@ -137,6 +137,78 @@ public sealed class SqliteAppRepository : IAppRepository
             [("$json", Serialize(settings.Normalize()))],
             cancellationToken);
 
+    public async Task ReplacePortableConfigurationAsync(
+        AppSettings settings,
+        IReadOnlyCollection<WatchItem> watchItems,
+        IReadOnlyCollection<AlertRule> alertRules,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(watchItems);
+        ArgumentNullException.ThrowIfNull(alertRules);
+
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = (SqliteTransaction)await connection
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        await using (var reset = connection.CreateCommand())
+        {
+            reset.Transaction = transaction;
+            reset.CommandText =
+                """
+                DELETE FROM watch_items;
+                DELETE FROM alert_rules;
+                INSERT INTO settings(id, json) VALUES(1, $settings)
+                ON CONFLICT(id) DO UPDATE SET json = excluded.json;
+                """;
+            reset.Parameters.AddWithValue("$settings", Serialize(settings.Normalize()));
+            await reset.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await using (var insertWatchItem = connection.CreateCommand())
+        {
+            insertWatchItem.Transaction = transaction;
+            insertWatchItem.CommandText =
+                """
+                INSERT INTO watch_items(instrument, sort_order, json)
+                VALUES($instrument, $sort_order, $json)
+                """;
+            var instrument = insertWatchItem.Parameters.Add("$instrument", SqliteType.Text);
+            var sortOrder = insertWatchItem.Parameters.Add("$sort_order", SqliteType.Integer);
+            var json = insertWatchItem.Parameters.Add("$json", SqliteType.Text);
+            foreach (var item in watchItems.OrderBy(item => item.SortOrder))
+            {
+                instrument.Value = item.Instrument.ToString();
+                sortOrder.Value = item.SortOrder;
+                json.Value = Serialize(item);
+                await insertWatchItem.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        await using (var insertRule = connection.CreateCommand())
+        {
+            insertRule.Transaction = transaction;
+            insertRule.CommandText =
+                """
+                INSERT INTO alert_rules(id, instrument, json)
+                VALUES($id, $instrument, $json)
+                """;
+            var id = insertRule.Parameters.Add("$id", SqliteType.Text);
+            var instrument = insertRule.Parameters.Add("$instrument", SqliteType.Text);
+            var json = insertRule.Parameters.Add("$json", SqliteType.Text);
+            foreach (var rule in alertRules)
+            {
+                id.Value = rule.Id.ToString("N");
+                instrument.Value = rule.Instrument.ToString();
+                json.Value = Serialize(rule);
+                await insertRule.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<WatchItem>> GetWatchItemsAsync(
         CancellationToken cancellationToken = default) =>
         await ReadManyAsync<WatchItem>(

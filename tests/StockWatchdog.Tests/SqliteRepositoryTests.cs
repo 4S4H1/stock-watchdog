@@ -10,6 +10,93 @@ namespace StockWatchdog.Tests;
 public sealed class SqliteRepositoryTests
 {
     [Fact]
+    public async Task Portable_configuration_replace_is_atomic_and_preserves_history()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            $"stock-watchdog-portable-{Guid.NewGuid():N}");
+        try
+        {
+            var repository = new SqliteAppRepository(Path.Combine(directory, "state.db"));
+            await repository.InitializeAsync();
+            var now = TestData.At(10, 0);
+            var originalItem = new WatchItem(TestData.Stock, "原标的", 0);
+            var originalRule = new AlertRule(
+                Guid.NewGuid(),
+                TestData.Stock,
+                AlertRuleType.PriceAbove,
+                "原规则",
+                10m,
+                null,
+                true,
+                TimeSpan.FromMinutes(5),
+                TimeSpan.FromMinutes(2),
+                3,
+                AlertPriority.Normal,
+                "1",
+                now);
+            var history = new AlertEvent(
+                Guid.NewGuid(),
+                originalRule.Id,
+                TestData.Stock,
+                AlertRuleType.PriceAbove,
+                AlertPriority.Normal,
+                "历史提醒",
+                "保留",
+                now,
+                now.AddMinutes(2),
+                "portable-history",
+                null);
+            await repository.SaveSettingsAsync(new AppSettings(ThemeId: "light"));
+            await repository.UpsertWatchItemAsync(originalItem);
+            await repository.UpsertAlertRuleAsync(originalRule);
+            Assert.True(await repository.TryAddAlertEventAsync(history));
+
+            _ = InstrumentId.TryParse("510300", out var importedInstrument);
+            var importedItem = new WatchItem(importedInstrument, "沪深300ETF", 0);
+            var importedRule = originalRule with
+            {
+                Id = Guid.NewGuid(),
+                Instrument = importedInstrument,
+                Name = "导入规则"
+            };
+            await repository.ReplacePortableConfigurationAsync(
+                new AppSettings(ThemeId: "dark"),
+                [importedItem],
+                [importedRule]);
+
+            Assert.Equal("dark", (await repository.GetSettingsAsync()).ThemeId);
+            Assert.Equal(importedItem, Assert.Single(await repository.GetWatchItemsAsync()));
+            Assert.Equal(importedRule, Assert.Single(await repository.GetAlertRulesAsync()));
+            Assert.Equal(history, Assert.Single(
+                await repository.GetAlertEventsAsync(now.AddMinutes(-1))));
+
+            var duplicateItems = new[]
+            {
+                importedItem,
+                importedItem with { SortOrder = 1, Name = "重复" }
+            };
+            await Assert.ThrowsAsync<SqliteException>(() =>
+                repository.ReplacePortableConfigurationAsync(
+                    new AppSettings(ThemeId: "spreadsheet"),
+                    duplicateItems,
+                    []));
+
+            Assert.Equal("dark", (await repository.GetSettingsAsync()).ThemeId);
+            Assert.Equal(importedItem, Assert.Single(await repository.GetWatchItemsAsync()));
+            Assert.Equal(importedRule, Assert.Single(await repository.GetAlertRulesAsync()));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task Repository_round_trips_core_local_state()
     {
         var directory = Path.Combine(

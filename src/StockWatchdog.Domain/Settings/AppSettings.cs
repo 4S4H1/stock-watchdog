@@ -33,7 +33,11 @@ public sealed record AppSettings(
     bool ShowNameColumn = true,
     bool ShowPriceColumn = true,
     bool ShowChangeColumn = true,
-    bool ShowSparklineColumn = true)
+    bool ShowSparklineColumn = true,
+    bool TScoreEnabled = true,
+    int TScoreAlertThreshold = 75,
+    int TScoreCooldownMinutes = 10,
+    int SettingsSchemaVersion = 2)
 {
     public HotkeySettings EffectiveBossHotkey => BossHotkey ?? new HotkeySettings();
 
@@ -44,6 +48,14 @@ public sealed record AppSettings(
         MaximumAnalysisItems = Math.Clamp(MaximumAnalysisItems, 1, 30),
         CompactWidth = Math.Clamp(CompactWidth, 320, 900),
         CompactHeight = Math.Clamp(CompactHeight, 120, 900),
+        TScoreEnabled = SettingsSchemaVersion < 2 || TScoreEnabled,
+        TScoreAlertThreshold = SettingsSchemaVersion < 2
+            ? 75
+            : Math.Clamp(TScoreAlertThreshold, 60, 95),
+        TScoreCooldownMinutes = SettingsSchemaVersion < 2
+            ? 10
+            : Math.Clamp(TScoreCooldownMinutes, 1, 240),
+        SettingsSchemaVersion = 2,
         CompactMode = Enum.IsDefined(CompactMode)
             ? CompactMode
             : CompactDisplayMode.Rich
